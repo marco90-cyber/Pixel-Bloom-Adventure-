@@ -312,25 +312,29 @@ object Art {
 
     private fun groundTile(d: ThemeDef, top: Boolean, v: Int, k: Int): Img {
         val p = Pix(16, 16)
+        val dirtDark = darker(d.dirtB, 0.25f)
         for (y in 0 until 16) for (x in 0 until 16) {
             val h = hash2(x, y, v + 3)
-            p.set(x, y, if (h % 9 == 0) d.dirtB else if (h % 23 == 0) lighter(d.dirtA, 0.15f) else d.dirtA)
+            p.set(x, y, if (h % 11 == 0) d.dirtB else if (h % 29 == 0) lighter(d.dirtA, 0.15f) else d.dirtA)
+        }
+        // sassolini con ombra
+        for (i in 0 until 2) {
+            val sx = 2 + (hash2(i, v, 31) % 11); val sy = 6 + (hash2(i, v, 37) % 8)
+            p.rect(sx, sy, 3, 2, lighter(d.dirtA, 0.3f)); p.rect(sx, sy + 2, 3, 1, dirtDark); p.set(sx, sy, lighter(d.dirtA, 0.5f))
         }
         if (top) {
-            for (y in 0..3) for (x in 0 until 16) p.set(x, y, d.topA)
+            val g = d.topA; val gd = d.topB; val gl = lighter(d.topA, 0.35f); val go = darker(d.topB, 0.4f)
             for (x in 0 until 16) {
-                p.set(x, 0, lighter(d.topA, 0.3f))
-                p.set(x, 3, d.topB)
-                val f = (x + v * 3) % 4
-                p.set(x, 4, if (f < 2) d.topB else d.topA)
-                if (f == 0) p.set(x, 5, d.topB)
-                val h = hash2(x, 1, v + 9)
-                if (h % 6 == 0) p.set(x, 1 + h % 2, lighter(d.topA, 0.15f))
+                // ciuffi irregolari sul bordo inferiore dell'erba
+                val drop = 4 + (hash2(x / 2, 3, v + 5) % 3)
+                for (y in 0 until drop) p.set(x, y, if (y == 0) gl else if (y < drop - 1) g else gd)
+                p.set(x, drop, go)
+                if (hash2(x, 8, v) % 5 == 0) p.set(x, 1, lighter(g, 0.2f))
             }
-            if (k == 2) for (x in 0 until 16) if (hash2(x, 7, 2) % 5 == 0) p.set(x, 2, c(0xFFFFFF))
+            if (k == 2) for (x in 0 until 16) { p.set(x, 0, c(0xFFFFFF)); if (hash2(x, 7, 2) % 3 == 0) p.set(x, 1, c(0xFFFFFF)) }
+            if (k == 3) for (x in 0 until 16) if (hash2(x, 5, 9) % 6 == 0) p.set(x, 2, c(0xFF8A3A))
         } else {
-            // leggera ombra sotto lo strato superiore
-            for (x in 0 until 16) if (hash2(x, 0, v) % 3 == 0) p.set(x, 0, d.dirtB)
+            for (x in 0 until 16) if (hash2(x, 0, v) % 3 == 0) p.set(x, 0, dirtDark)
         }
         return p.toImg()
     }
@@ -479,25 +483,121 @@ object Art {
         return p.toImg()
     }
 
+    private fun hillTop(k: Int, far: Boolean, x: Int): Int {
+        val a = 2.0 * PI / VW
+        val xd = x.toDouble()
+        val v: Double = when (k) {
+            0 -> if (far) 150 + 24 * sin(a * 2 * xd + 1) + 10 * sin(a * 5 * xd) else 192 + 14 * sin(a * 3 * xd + 0.5) + 6 * sin(a * 8 * xd)
+            1 -> if (far) {
+                // mesa a gradini
+                val s = sin(a * 3 * xd + 0.4)
+                val base = 158 + 28 * s
+                (Math.round(base / 10.0) * 10).toDouble()
+            } else 205 + 10 * sin(a * 2 * xd + 1) + 5 * sin(a * 6 * xd)
+            2 -> if (far) 200 - 100 * (1 - abs(sin(PI * 3 * xd / VW + 0.5))) else 218 - 40 * (1 - abs(sin(PI * 5 * xd / VW + 1.1)))
+            else -> if (far) 205 - 105 * (1 - abs(sin(PI * 2 * xd / VW + 1))) else 218 - 48 * (1 - abs(sin(PI * 4 * xd / VW + 0.3)))
+        }
+        return v.toInt().coerceIn(8, VH - 1)
+    }
+
+    private fun wrapSet(p: Pix, x: Int, y: Int, col: Int) { p.set(((x % VW) + VW) % VW, y, col) }
+
+    private fun tree(p: Pix, x: Int, by: Int, h: Int, leaf: Int, trunk: Int) {
+        val ol = darker(leaf, 0.55f)
+        for (y in by - h / 2 until by) for (dx in 0..1) wrapSet(p, x + dx, y, trunk)
+        val r = h / 3 + 3
+        val cy = by - h / 2 - r / 2
+        for (yy in -r..r) for (xx in -r..r) {
+            val d = xx * xx + yy * yy
+            if (d <= r * r) {
+                val edge = d > (r - 1) * (r - 1)
+                val col = if (edge) ol else if (xx + yy < -r / 2) lighter(leaf, 0.3f) else if (xx + yy > r / 2) darker(leaf, 0.2f) else leaf
+                wrapSet(p, x + xx, cy + yy, col)
+            }
+        }
+    }
+
+    private fun pine(p: Pix, x: Int, by: Int, h: Int, leaf: Int, snow: Boolean) {
+        val ol = darker(leaf, 0.55f)
+        for (y in by - 4 until by) wrapSet(p, x, y, c(0x5A3A2A))
+        val tiers = 3
+        for (t in 0 until tiers) {
+            val top = by - h + t * (h / 4)
+            val bot = top + h / 2
+            val half = 3 + t * 2 + h / 8
+            for (y in top..bot) {
+                val w = (half * (y - top)) / (bot - top)
+                for (xx in -w..w) {
+                    val edge = xx == -w || xx == w || y == bot
+                    var col = if (edge) ol else if (xx < 0) lighter(leaf, 0.15f) else leaf
+                    if (snow && !edge && y - top < (bot - top) / 3 + 1) col = c(0xF4FBFF)
+                    wrapSet(p, x + xx, y, col)
+                }
+            }
+        }
+    }
+
+    private fun cactus(p: Pix, x: Int, by: Int, h: Int) {
+        val g = c(0x4FA84A); val ol = c(0x2A5E2A); val lt = c(0x7ED36A)
+        for (y in by - h until by) { wrapSet(p, x - 2, y, ol); wrapSet(p, x + 2, y, ol); wrapSet(p, x - 1, y, lt); wrapSet(p, x, y, g); wrapSet(p, x + 1, y, g) }
+        for (xx in -1..1) wrapSet(p, x + xx, by - h - 1, ol)
+        val ay = by - h / 2
+        for (xx in 3..6) { wrapSet(p, x + xx, ay, g); wrapSet(p, x + xx, ay - 1, ol); wrapSet(p, x + xx, ay + 1, ol) }
+        for (y in ay - 6..ay) { wrapSet(p, x + 6, y, g); wrapSet(p, x + 5, y, ol); wrapSet(p, x + 7, y, ol) }
+        for (xx in -6..-3) { wrapSet(p, x + xx, ay + 3, g); wrapSet(p, x + xx, ay + 2, ol); wrapSet(p, x + xx, ay + 4, ol) }
+        for (y in ay - 3..ay + 3) { wrapSet(p, x - 6, y, g); wrapSet(p, x - 5, y, ol); wrapSet(p, x - 7, y, ol) }
+    }
+
     private fun farLayer(k: Int, far: Boolean): Img {
         val d = themes[k]
         val p = Pix(VW, VH)
         val col = if (far) d.far else d.mid
-        val a = 2.0 * PI / VW
+        val tops = IntArray(VW) { hillTop(k, far, it) }
+        val dark = darker(col, 0.5f)
         for (x in 0 until VW) {
-            val xd = x.toDouble()
-            val top: Double = when (k) {
-                0 -> if (far) 150 + 25 * sin(a * 2 * xd + 1) + 12 * sin(a * 5 * xd) else 196 + 12 * sin(a * 3 * xd + 0.5) + 6 * sin(a * 8 * xd)
-                1 -> if (far) 170 + 18 * sin(a * 3 * xd) + 8 * sin(a * 7 * xd + 2) else 205 + 10 * sin(a * 2 * xd + 1) + 5 * sin(a * 6 * xd)
-                2 -> if (far) 200 - 90 * (1 - abs(sin(PI * 3 * xd / VW + 0.5))) else 215 - 50 * (1 - abs(sin(PI * 5 * xd / VW + 1.1)))
-                else -> if (far) 205 - 100 * (1 - abs(sin(PI * 2 * xd / VW + 1))) else 220 - 45 * (1 - abs(sin(PI * 4 * xd / VW + 0.3)))
-            }
-            val t0 = top.toInt().coerceIn(0, VH - 1)
+            val t0 = tops[x]
             for (y in t0 until VH) {
-                var cc = mixColor(col, darker(col, 0.35f), (y - t0) / 140f)
-                if (k == 2 && far && y - t0 < 9) cc = c(0xFFFFFF)
-                if (k == 3 && far && y - t0 < 2) cc = c(0xFFE5662A.toInt())
-                p.px[y * VW + x] = cc
+                val rel = y - t0
+                val band = rel / 26
+                var shade = if (band == 0) col else mixColor(col, dark, minOf(0.65f, band * 0.22f))
+                // dithering al confine tra le fasce
+                if (rel % 26 < 2 && band > 0 && (x + y) % 2 == 0) shade = mixColor(col, dark, minOf(0.65f, (band - 1) * 0.22f))
+                p.px[y * VW + x] = shade
+            }
+            // bordo: luce sopra, contorno scuro
+            if (t0 > 0) p.px[(t0 - 1) * VW + x] = dark
+            if (t0 + 1 < VH) p.px[t0 * VW + x] = lighter(col, 0.28f)
+            // pendio illuminato verso sinistra
+            val prev = tops[(x + VW - 1) % VW]
+            if (prev > t0 && t0 + 2 < VH) p.px[(t0 + 1) * VW + x] = lighter(col, 0.12f)
+        }
+        // dettagli per tema
+        var seed = 11 + k * 7 + (if (far) 0 else 100)
+        fun rnd(n: Int): Int { seed = seed * 1103515245 + 12345; return ((seed ushr 8) and 0xFFFF) % n }
+        when (k) {
+            0 -> if (far) {
+                for (i in 0 until 16) { val x = 14 + i * 30 + rnd(10); tree(p, x, tops[x % VW] + 2, 12, lighter(d.far, 0.0f).let { darker(it, 0.15f) }, c(0x6A4A2A)) }
+            } else {
+                for (i in 0 until 9) { val x = 20 + i * 52 + rnd(16); tree(p, x, tops[x % VW] + 3, 26 + rnd(10), c(0x2FA85A), c(0x7A4F2A)) }
+                for (i in 0 until 24) { val x = 6 + i * 20 + rnd(12); val y = tops[x % VW] + 4 + rnd(10); wrapSet(p, x, y, c(0xFFE066)); wrapSet(p, x + 1, y, c(0xFF7BAC)); wrapSet(p, x, y + 1, c(0xFFFFFF)) }
+            }
+            1 -> if (far) {
+                // strati di roccia sulle mesa
+                for (x in 0 until VW) { val t0 = tops[x]; for (y in t0 + 8 until VH step 9) p.px[y * VW + x] = darker(col, 0.25f) }
+            } else {
+                for (i in 0 until 8) { val x = 24 + i * 58 + rnd(20); cactus(p, x, tops[x % VW] + 2, 18 + rnd(14)) }
+            }
+            2 -> if (far) {
+                // neve sulle cime e facce in ombra
+                for (x in 0 until VW) { val t0 = tops[x]; for (y in t0 until minOf(VH, t0 + 12)) p.px[y * VW + x] = if ((x + y) % 7 == 0) c(0xDDEEFA) else c(0xFFFFFF) ; for (y in t0 + 12 until minOf(VH, t0 + 14)) if ((x + y) % 2 == 0) p.px[y * VW + x] = c(0xFFFFFF) }
+            } else {
+                for (i in 0 until 12) { val x = 12 + i * 40 + rnd(14); pine(p, x, tops[x % VW] + 3, 26 + rnd(12), c(0x2E8A6A), true) }
+            }
+            else -> if (far) {
+                for (x in 0 until VW) { val t0 = tops[x]; if (t0 < 130) { for (y in t0 until minOf(VH, t0 + 3)) p.px[y * VW + x] = if (y == t0) c(0xFFD84A) else c(0xFF7A2A) } }
+                for (i in 0 until 7) { val x = 30 + i * 66 + rnd(20); val t0 = tops[x % VW]; for (y in t0 + 4 until minOf(VH, t0 + 40 + rnd(30))) wrapSet(p, x + (y - t0) / 6 % 3, y, c(0xFF7A2A)) }
+            } else {
+                for (i in 0 until 10) { val x = 18 + i * 46 + rnd(16); val t0 = tops[x % VW]; for (y in t0 + 1 until minOf(VH, t0 + 5)) wrapSet(p, x, y, c(0xFF6A2A)); wrapSet(p, x + 1, t0 + 2, c(0xFFD84A)) }
             }
         }
         return p.toImg()
