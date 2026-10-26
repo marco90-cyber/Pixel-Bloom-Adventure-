@@ -672,7 +672,8 @@ class Game(val store: Storage, val snd: Sound, val host: Host) {
             val open = p.unlocked(w * 5 + k + 1)
             for (s in 1 until n) {
                 val x = x0 + (x1 - x0) * s / n; val y = y0 + (y1 - y0) * s / n
-                g.fill(x - 1, y - 1, 3, 3, if (open) lighter(d.topB, 0.5f) else withAlpha(160, 0x444444))
+                g.fill(x - 2, y - 2, 5, 5, withAlpha(200, 0x1A1530))
+                g.fill(x - 1, y - 1, 3, 3, if (open) lighter(d.topA, 0.55f) else withAlpha(220, 0x6A6F80))
             }
         }
         // nodi
@@ -683,7 +684,9 @@ class Game(val store: Storage, val snd: Sound, val host: Host) {
             val un = p.unlocked(idx)
             val col = if (p.done[idx]) Ui.GREEN else if (!un) 0xFF7A7F90.toInt() else if (boss) Ui.RED else Ui.GOLD
             val r = if (boss) 14 else 11
+            Ui.disc(g, x + 1, y + 3, r + 2, withAlpha(110, 0x000000))
             Ui.disc(g, x, y, r + 2, 0xFF1A1530.toInt())
+            Ui.disc(g, x, y, r, lighter(0xFF000000.toInt() or (if (p.done[idx]) 0x4CD964 else 0xFFD23C), 0.35f))
             Ui.disc(g, x, y, r, col)
             Font.center(g, "" + (k + 1), x, y - 3, if (un) 0xFF1A1530.toInt() else Ui.DIM)
             if (boss) g.img(Art.theme(w).boss[(tick / 20) % 2], x - 16, y - 40, false, false, 32, 29)

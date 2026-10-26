@@ -632,6 +632,8 @@ object Art {
         p.rect(4, ey, 3, 3, c(0xFFFFFF)); p.rect(9, ey, 3, 3, c(0xFFFFFF))
         p.rect(5, ey + 1, 1, 2, c(0x1A1A2E)); p.rect(10, ey + 1, 1, 2, c(0x1A1A2E))
         p.set(4, ey - 2 + if (f == 0) 0 else 1, lighter(d.enemyA, 0.5f)); p.set(5, ey - 2 + if (f == 0) 0 else 1, lighter(d.enemyA, 0.5f))
+        p.rect(6, ey + 4, 4, 1, darker(d.enemyA, 0.5f)); p.set(3, ey + 3, lighter(d.enemyA, 0.35f)); p.set(12, ey + 3, lighter(d.enemyA, 0.35f))
+        p.rect(3, ey - 3 + if (f == 0) 0 else 1, 2, 1, lighter(d.enemyA, 0.65f))
         return p.toImg()
     }
 

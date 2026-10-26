@@ -242,6 +242,9 @@ object WorldRender {
     }
 
     fun drawHud(g: Gfx, w: World, levelLabel: String) {
+        Ui.panel(g, 2, 2, 52, 40, 0xB41A1530.toInt(), 0xFFB89A3C.toInt())
+        if (levelLabel.isNotEmpty()) { val lw = Font.width(levelLabel) + 14; Ui.panel(g, VW / 2 - lw / 2, 2, lw, 15, 0xB41A1530.toInt(), 0xFFB89A3C.toInt()) }
+        Ui.panel(g, VW - 134 - 52, 2, 56, 15, 0xB41A1530.toInt(), 0xFFB89A3C.toInt())
         // cuori
         for (i in 0 until 2) g.img(if (i < w.hp) Art.heart else Art.heartEmpty, 6 + i * 10, 6)
         g.img(Art.coinIcon, 6, 18)
@@ -249,10 +252,10 @@ object WorldRender {
         g.img(Art.seedIcon, 6, 29)
         if (w.seedGot) Font.text(g, "OK", 16, 30, 0xFFFFD23C.toInt(), 1, 0xFF000000.toInt())
         else Font.text(g, "-", 16, 30, 0xFFAAAAAA.toInt(), 1, 0xFF000000.toInt())
-        if (levelLabel.isNotEmpty()) Font.center(g, levelLabel, VW / 2, 6, 0xFFFFFFFF.toInt(), 1, 0xFF000000.toInt())
+        if (levelLabel.isNotEmpty()) Font.center(g, levelLabel, VW / 2, 7, 0xFFFFFFFF.toInt(), 1, 0xFF000000.toInt())
         val sec = max(0, w.timeLeft / 60)
         val ts = "T " + sec
-        Font.text(g, ts, VW - 130 - Font.width(ts), 6, if (sec < 30) 0xFFFF6A6A.toInt() else 0xFFFFFFFF.toInt(), 1, 0xFF000000.toInt())
+        Font.text(g, ts, VW - 134 - 52 + 28 - Font.width(ts) / 2, 7, if (sec < 30) 0xFFFF6A6A.toInt() else 0xFFFFFFFF.toInt(), 1, 0xFF000000.toInt())
         if (w.wonderT > 0) {
             val bw = 80
             val f = w.wonderT / 720f
