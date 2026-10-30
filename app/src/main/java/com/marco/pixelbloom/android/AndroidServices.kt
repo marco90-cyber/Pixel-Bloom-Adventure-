@@ -83,6 +83,8 @@ class AndroidSound : Sound {
 class AndroidHost(private val act: Activity) : Host {
     override fun exit() { act.runOnUiThread { act.finish() } }
 
+    override fun checkUpdates() { act.runOnUiThread { AppUpdateWindow.show(act) } }
+
     override fun share(text: String) {
         act.runOnUiThread {
             val i = Intent(Intent.ACTION_SEND)

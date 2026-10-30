@@ -53,6 +53,8 @@ interface Host {
     fun share(text: String)
     fun clipboard(): String?
     fun vibrate(ms: Int)
+    /** Apre la finestra degli aggiornamenti dell'app (se la piattaforma la prevede). */
+    fun checkUpdates() {}
 }
 
 /** Implementazioni "vuote" utili per i test. */

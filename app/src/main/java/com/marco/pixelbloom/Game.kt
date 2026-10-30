@@ -434,7 +434,7 @@ class Game(val store: Storage, val snd: Sound, val host: Host) {
 
     // ---------- opzioni ----------
     private fun updateOptions() {
-        val n = 7
+        val n = 8
         val i = input
         if (i.p(Btn.UP)) { menuSel = (menuSel + n - 1) % n; snd.sfx(Sfx.SELECT) }
         if (i.p(Btn.DOWN)) { menuSel = (menuSel + 1) % n; snd.sfx(Sfx.SELECT) }
@@ -451,7 +451,8 @@ class Game(val store: Storage, val snd: Sound, val host: Host) {
             3 -> opts.opacity = ((opts.opacity - 1 + d + 10) % 10) + 1
             4 -> { opts.size = (opts.size + d + 3) % 3; layoutControls() }
             5 -> { opts.vibrate = !opts.vibrate; if (opts.vibrate) host.vibrate(30) }
-            6 -> { saveOptions(); snd.sfx(Sfx.BACK); go(Scr.TITLE) }
+            6 -> if (d > 0) { saveOptions(); host.checkUpdates() }
+            7 -> { saveOptions(); snd.sfx(Sfx.BACK); go(Scr.TITLE) }
         }
         if (menuSel != 1) snd.sfx(Sfx.SELECT)
     }
@@ -776,9 +777,10 @@ class Game(val store: Storage, val snd: Sound, val host: Host) {
             "OPACITA COMANDI  " + bar(opts.opacity),
             "COMANDI  " + sizes[opts.size],
             "VIBRAZIONE  " + (if (opts.vibrate) "SI" else "NO"),
+            "AGGIORNAMENTI",
             "INDIETRO"
         )
-        drawMenu(g, items, menuSel, VW / 2, 50, 26, 1, null, 360)
+        drawMenu(g, items, menuSel, VW / 2, 48, 22, 1, null, 360)
         Font.center(g, "TASTIERA: FRECCE/WASD  Z=SALTA  X=CORRI/SPARA", VW / 2, 218, Ui.GRAY, 1, Ui.BLACK)
     }
 

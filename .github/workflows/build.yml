@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -21,10 +24,52 @@ jobs:
         with:
           gradle-version: 8.9
 
-      - name: Compila APK (debug)
-        run: gradle :app:assembleDebug --stacktrace
+      - name: Prepara la firma privata
+        shell: bash
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/app.jks"
+            echo "APP_KEYSTORE=$RUNNER_TEMP/app.jks" >> "$GITHUB_ENV"
+            echo "Firma: chiave privata"
+          else
+            echo "::warning::Segreto KEYSTORE_BASE64 assente: APK firmato con la chiave di debug (gli aggiornamenti in app non si potranno installare sopra)"
+          fi
+
+      - name: Compila APK (release)
+        shell: bash
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set +e
+          gradle :app:assembleRelease --stacktrace 2>&1 | tee build.log
+          st=${PIPESTATUS[0]}
+          if [ $st -ne 0 ]; then
+            grep -E "^e: |error:|What went wrong|FAILED|Execution failed" build.log | sed 's#file:///home/runner/work/[^/]*/[^/]*/##' | head -20 | while IFS= read -r l; do echo "::error::${l:0:400}"; done
+          fi
+          exit $st
+
+      - name: Rinomina APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/PixelBloom-1.0.${{ github.run_number }}.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: PixelBloom-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: PixelBloom-apk
+          path: dist/*.apk
+
+      - name: Pubblica la release (aggiornamenti in app)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.run_number }}"
+          gh release create "$TAG" dist/*.apk \
+            --title "Pixel Bloom 1.0.${{ github.run_number }}" \
+            --notes "$(git log -1 --pretty=%s)" \
+            --target "${{ github.sha }}" \
+            --latest
